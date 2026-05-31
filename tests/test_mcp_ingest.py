@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from graphify.mcp_ingest import (
+from graphify_construct.mcp_ingest import (
     MCP_CONFIG_FILENAMES,
     extract_mcp_config,
     is_mcp_config_path,
@@ -314,7 +314,7 @@ def test_server_without_command_still_emits_server_node(tmp_path):
 def test_dispatch_routes_mcp_filename_to_mcp_extractor(tmp_path):
     # End-to-end: a .mcp.json file goes through _get_extractor and ends up at
     # extract_mcp_config, NOT extract_json.
-    from graphify.extract import _get_extractor
+    from graphify_construct.extract import _get_extractor
 
     p = _write(tmp_path, ".mcp.json", {
         "mcpServers": {"x": {"command": "npx", "args": ["@scope/server-x"]}},
@@ -324,7 +324,7 @@ def test_dispatch_routes_mcp_filename_to_mcp_extractor(tmp_path):
 
 
 def test_dispatch_does_not_reroute_generic_json(tmp_path):
-    from graphify.extract import _get_extractor, extract_json
+    from graphify_construct.extract import _get_extractor, extract_json
 
     p = _write(tmp_path, "package.json", {"name": "x", "version": "1.0.0"})
     extractor = _get_extractor(p)

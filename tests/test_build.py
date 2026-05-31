@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import networkx as nx
 from networkx.readwrite import json_graph
-from graphify.build import build_from_json, build, build_merge, edge_data, edge_datas
+from graphify_construct.build import build_from_json, build, build_merge, edge_data, edge_datas
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -33,7 +33,7 @@ def test_ambiguous_edge_preserved():
 
 def test_legacy_node_source_canonicalized():
     """Legacy 'source' key on nodes is renamed to 'source_file' before graph build."""
-    ext = {"nodes": [{"id": "n1", "label": "A", "file_type": "code", "source": "a.py"}],
+    ext = {"nodes": [{"id": "n1", "label": "A", "file_type": "task", "source": "a.py"}],
            "edges": [], "input_tokens": 0, "output_tokens": 0}
     G = build_from_json(ext)
     assert "source_file" in G.nodes["n1"]
@@ -43,8 +43,8 @@ def test_legacy_node_source_canonicalized():
 
 def test_legacy_edge_from_to_canonicalized():
     """Legacy 'from'/'to' keys on edges are accepted alongside 'source'/'target'."""
-    ext = {"nodes": [{"id": "n1", "label": "A", "file_type": "code", "source_file": "a.py"},
-                     {"id": "n2", "label": "B", "file_type": "code", "source_file": "b.py"}],
+    ext = {"nodes": [{"id": "n1", "label": "A", "file_type": "task", "source_file": "a.py"},
+                     {"id": "n2", "label": "B", "file_type": "task", "source_file": "b.py"}],
            "edges": [{"from": "n1", "to": "n2", "relation": "calls",
                       "confidence": "EXTRACTED", "source_file": "a.py", "weight": 1.0}],
            "input_tokens": 0, "output_tokens": 0}
@@ -56,8 +56,8 @@ def test_source_file_backslash_normalized():
     """Windows backslash paths and POSIX paths for the same file must produce one node."""
     extraction = {
         "nodes": [
-            {"id": "n1", "label": "A", "file_type": "code", "source_file": "src\\middleware\\auth.py"},
-            {"id": "n2", "label": "B", "file_type": "code", "source_file": "src/middleware/auth.py"},
+            {"id": "n1", "label": "A", "file_type": "task", "source_file": "src\\middleware\\auth.py"},
+            {"id": "n2", "label": "B", "file_type": "task", "source_file": "src/middleware/auth.py"},
         ],
         "edges": [],
         "input_tokens": 0, "output_tokens": 0,
@@ -68,7 +68,7 @@ def test_source_file_backslash_normalized():
 
 
 def test_build_merges_multiple_extractions():
-    ext1 = {"nodes": [{"id": "n1", "label": "A", "file_type": "code", "source_file": "a.py"}],
+    ext1 = {"nodes": [{"id": "n1", "label": "A", "file_type": "task", "source_file": "a.py"}],
             "edges": [], "input_tokens": 0, "output_tokens": 0}
     ext2 = {"nodes": [{"id": "n2", "label": "B", "file_type": "document", "source_file": "b.md"}],
             "edges": [{"source": "n1", "target": "n2", "relation": "references",
@@ -79,13 +79,12 @@ def test_build_merges_multiple_extractions():
     assert G.number_of_edges() == 1
 
 
-def test_none_file_type_defaults_to_concept(capsys):
-    """Legacy nodes with file_type=None (e.g. preserved from older graph.json
-    by `_rebuild_code`) must not trigger 'invalid file_type None' warnings (#660)."""
+def test_none_file_type_defaults_to_document(capsys):
+    """Nodes with file_type=None default to 'document' (construction default)."""
     ext = {
         "nodes": [
-            {"id": "n1", "label": "Stub", "file_type": None, "source_file": "a.py"},
-            {"id": "n2", "label": "Real", "file_type": "code", "source_file": "b.py"},
+            {"id": "n1", "label": "Stub", "file_type": None, "source_file": "a.pdf"},
+            {"id": "n2", "label": "Real", "file_type": "task", "source_file": "schedule.md"},
         ],
         "edges": [],
         "input_tokens": 0,
@@ -94,16 +93,15 @@ def test_none_file_type_defaults_to_concept(capsys):
     G = build_from_json(ext)
     err = capsys.readouterr().err
     assert "invalid file_type" not in err
-    # The legacy node still exists in the graph and has been canonicalized
-    assert G.nodes["n1"]["file_type"] == "concept"
-    assert G.nodes["n2"]["file_type"] == "code"
+    assert G.nodes["n1"]["file_type"] == "document"
+    assert G.nodes["n2"]["file_type"] == "task"
 
 
-def test_missing_file_type_defaults_to_concept(capsys):
-    """Nodes missing file_type entirely should also be canonicalized to 'concept'."""
+def test_missing_file_type_defaults_to_document(capsys):
+    """Nodes missing file_type entirely are canonicalized to 'document'."""
     ext = {
         "nodes": [
-            {"id": "n1", "label": "Bare", "source_file": "a.py"},
+            {"id": "n1", "label": "Bare", "source_file": "a.pdf"},
         ],
         "edges": [],
         "input_tokens": 0,
@@ -113,31 +111,14 @@ def test_missing_file_type_defaults_to_concept(capsys):
     err = capsys.readouterr().err
     assert "invalid file_type" not in err
     assert "missing required field 'file_type'" not in err
-    assert G.nodes["n1"]["file_type"] == "concept"
+    assert G.nodes["n1"]["file_type"] == "document"
 
 
-def test_real_invalid_file_type_coerced_to_concept():
-    """Unknown file_type values are coerced through the synonym mapper, falling
-    back to 'concept' for anything that isn't a known LLM synonym (#840)."""
+def test_real_invalid_file_type_coerced_to_document():
+    """Unknown file_type values fall back to 'document' (construction default)."""
     ext = {
         "nodes": [
-            {"id": "n1", "label": "Bad", "file_type": "weird_type", "source_file": "a.py"},
-        ],
-        "edges": [],
-        "input_tokens": 0,
-        "output_tokens": 0,
-    }
-    G = build_from_json(ext)
-    assert G.nodes["n1"]["file_type"] == "concept"
-
-
-def test_file_type_synonym_mapping():
-    """Known invalid file_type values map to their canonical equivalents."""
-    ext = {
-        "nodes": [
-            {"id": "n1", "label": "MD", "file_type": "markdown", "source_file": "a.md"},
-            {"id": "n2", "label": "Tool", "file_type": "tool", "source_file": "b.py"},
-            {"id": "n3", "label": "Pat", "file_type": "pattern", "source_file": "c.md"},
+            {"id": "n1", "label": "Bad", "file_type": "weird_type", "source_file": "a.pdf"},
         ],
         "edges": [],
         "input_tokens": 0,
@@ -145,8 +126,24 @@ def test_file_type_synonym_mapping():
     }
     G = build_from_json(ext)
     assert G.nodes["n1"]["file_type"] == "document"
-    assert G.nodes["n2"]["file_type"] == "code"
-    assert G.nodes["n3"]["file_type"] == "concept"
+
+
+def test_file_type_synonym_mapping():
+    """Known synonym values map to their construction canonical equivalents."""
+    ext = {
+        "nodes": [
+            {"id": "n1", "label": "Contractor", "file_type": "contractor", "source_file": "contract.md"},
+            {"id": "n2", "label": "Milestone", "file_type": "milestone", "source_file": "schedule.md"},
+            {"id": "n3", "label": "Worker", "file_type": "worker", "source_file": "report.md"},
+        ],
+        "edges": [],
+        "input_tokens": 0,
+        "output_tokens": 0,
+    }
+    G = build_from_json(ext)
+    assert G.nodes["n1"]["file_type"] == "institution"
+    assert G.nodes["n2"]["file_type"] == "deadline"
+    assert G.nodes["n3"]["file_type"] == "person"
 
 
 def test_build_merge_preserves_call_edge_direction(tmp_path):
@@ -160,8 +157,8 @@ def test_build_merge_preserves_call_edge_direction(tmp_path):
     build_merge must read the saved JSON's source/target verbatim instead
     of round-tripping through NetworkX.
     """
-    from graphify.extract import extract_js
-    from graphify.export import to_json
+    from graphify_construct.extract import extract_js
+    from graphify_construct.export import to_json
 
     # Callee `b` is defined before caller `a` so node insertion order
     # is b, a. An undirected Graph then yields the edge as (b, a) on
@@ -230,7 +227,7 @@ def test_build_from_json_preserves_first_direction_on_bidirectional_pair(tmp_pat
     build_from_json must keep the first-seen direction for the surviving edge
     instead of letting the second add_edge overwrite _src/_tgt.
     """
-    from graphify.export import to_json
+    from graphify_construct.export import to_json
 
     # Lexicographic order of (src, tgt, rel) puts `a` < `z` first, so the sort
     # processes `a -> z` BEFORE `z -> a`. Without the fix, the second write
@@ -238,8 +235,8 @@ def test_build_from_json_preserves_first_direction_on_bidirectional_pair(tmp_pat
     # the first-seen `a -> z` direction is preserved.
     extraction = {
         "nodes": [
-            {"id": "a_handler", "label": "a", "file_type": "code", "source_file": "a.ts"},
-            {"id": "z_emitter", "label": "z", "file_type": "code", "source_file": "z.ts"},
+            {"id": "a_handler", "label": "a", "file_type": "task", "source_file": "a.ts"},
+            {"id": "z_emitter", "label": "z", "file_type": "task", "source_file": "z.ts"},
         ],
         "edges": [
             {"source": "a_handler", "target": "z_emitter", "relation": "calls",
@@ -387,7 +384,7 @@ def test_build_relativizes_absolute_source_file(tmp_path):
     root.mkdir()
     abs_path = str(root / "src" / "main.py")
     extraction = {
-        "nodes": [{"id": "main_fn", "label": "main", "source_file": abs_path, "file_type": "code"}],
+        "nodes": [{"id": "main_fn", "label": "main", "source_file": abs_path, "file_type": "task"}],
         "edges": [],
     }
     G = build([extraction], root=root)
@@ -398,7 +395,7 @@ def test_build_relativizes_absolute_source_file(tmp_path):
 def test_build_from_json_relative_source_file_unchanged(tmp_path):
     """Already-relative source_file paths must not be modified."""
     extraction = {
-        "nodes": [{"id": "foo_bar", "label": "bar", "source_file": "src/foo.py", "file_type": "code"}],
+        "nodes": [{"id": "foo_bar", "label": "bar", "source_file": "src/foo.py", "file_type": "task"}],
         "edges": [],
     }
     G = build_from_json(extraction, root=tmp_path)
@@ -416,8 +413,8 @@ def test_build_merge_prune_absolute_paths_match_relative_nodes(tmp_path):
 
     # Simulate a graph with relative source_file paths (as built normally)
     chunk = {"nodes": [
-        {"id": "n1", "label": "login", "file_type": "code", "source_file": "module_a/auth.py"},
-        {"id": "n2", "label": "format_date", "file_type": "code", "source_file": "module_b/utils.py"},
+        {"id": "n1", "label": "login", "file_type": "task", "source_file": "module_a/auth.py"},
+        {"id": "n2", "label": "format_date", "file_type": "task", "source_file": "module_b/utils.py"},
     ], "edges": [
         {"source": "n1", "target": "n2", "relation": "calls", "confidence": "EXTRACTED",
          "source_file": "module_b/utils.py", "weight": 1.0},
@@ -445,7 +442,7 @@ def test_build_merge_prune_windows_backslash_paths(tmp_path):
     graph_path = tmp_path / "graph.json"
 
     chunk = {"nodes": [
-        {"id": "n1", "label": "parse_date", "file_type": "code", "source_file": "module_b/utils.py"},
+        {"id": "n1", "label": "parse_date", "file_type": "task", "source_file": "module_b/utils.py"},
     ], "edges": []}
     G0 = build([chunk], dedup=False)
     graph_path.write_text(json.dumps(nx.node_link_data(G0, edges="edges")), encoding="utf-8")

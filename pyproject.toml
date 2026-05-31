@@ -3,50 +3,23 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "graphifyy"
-version = "0.8.24"
-description = "AI coding assistant skill (Claude Code, Codex, OpenCode, Cursor, Gemini CLI, Aider, OpenClaw, Factory Droid, Trae, Hermes, Kiro, Pi, Devin CLI, Google Antigravity) - turn any folder of code, docs, papers, images, or videos into a queryable knowledge graph"
+name = "graphify-construct"
+version = "0.1.0"
+description = "Construction project knowledge graph — ingest PDFs, docx, xlsx, emails, and schedules into a queryable graph of Tasks, People, Buildings, Deadlines, and Permits"
 readme = "README.md"
 license = { file = "LICENSE" }
-keywords = ["claude", "claude-code", "codex", "opencode", "cursor", "gemini", "aider", "kiro", "pi", "devin", "knowledge-graph", "rag", "graphrag", "obsidian", "community-detection", "tree-sitter", "leiden", "llm"]
+keywords = ["claude", "claude-code", "knowledge-graph", "construction", "gantt", "critical-path", "graphrag"]
 requires-python = ">=3.10"
 dependencies = [
     "networkx",
     "datasketch",
     "rapidfuzz",
-    "tree-sitter>=0.23.0",
-    "tree-sitter-python",
-    "tree-sitter-javascript",
-    "tree-sitter-typescript",
-    "tree-sitter-go",
-    "tree-sitter-rust",
-    "tree-sitter-java",
-    "tree-sitter-groovy",
-    "tree-sitter-c",
-    "tree-sitter-cpp",
-    "tree-sitter-ruby",
-    "tree-sitter-c-sharp",
-    "tree-sitter-kotlin",
-    "tree-sitter-scala",
-    "tree-sitter-php",
-    "tree-sitter-swift",
-    "tree-sitter-lua",
-    "tree-sitter-zig",
-    "tree-sitter-powershell",
-    "tree-sitter-elixir",
-    "tree-sitter-objc",
-    "tree-sitter-julia",
-    "tree-sitter-verilog",
-    "tree-sitter-fortran",
-    "tree-sitter-bash",
-    "tree-sitter-json",
-    "tree-sitter-dm",
 ]
 
 [project.urls]
-Homepage = "https://github.com/safishamsi/graphify"
-Repository = "https://github.com/safishamsi/graphify"
-Issues = "https://github.com/safishamsi/graphify/issues"
+Homepage = "https://github.com/fsaint/graphify-construct"
+Repository = "https://github.com/fsaint/graphify-construct"
+Issues = "https://github.com/fsaint/graphify-construct/issues"
 
 [project.optional-dependencies]
 mcp = ["mcp"]
@@ -68,7 +41,7 @@ sql = ["tree-sitter-sql"]
 all = ["mcp", "neo4j", "pypdf", "markdownify", "watchdog", "graspologic; python_version < '3.13'", "python-docx", "openpyxl", "faster-whisper; python_version >= '3.11'", "yt-dlp", "matplotlib", "openai", "tiktoken", "boto3", "tree-sitter-sql", "jieba"]
 
 [project.scripts]
-graphify = "graphify.__main__:main"
+graphify-construct = "graphify_construct.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -94,11 +67,11 @@ dev = [
 package = true
 
 [tool.setuptools]
-packages = ["graphify"]
+packages = ["graphify_construct"]
 include-package-data = false
 
 [tool.setuptools.package-data]
-graphify = ["skill.md", "skill-codex.md", "skill-opencode.md", "skill-aider.md", "skill-amp.md", "skill-copilot.md", "skill-claw.md", "skill-windows.md", "skill-droid.md", "skill-trae.md", "skill-kiro.md", "skill-vscode.md", "skill-pi.md", "skill-devin.md"]
+graphify_construct = ["skill-construct.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -120,6 +93,6 @@ target-version = "py310"
 select = ["E9", "F63", "F7", "F82"]
 
 [tool.pyright]
-include = ["graphify", "tests"]
+include = ["graphify_construct", "tests"]
 pythonVersion = "3.10"
 typeCheckingMode = "basic"

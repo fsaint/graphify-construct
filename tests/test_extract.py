@@ -1,5 +1,5 @@
 from pathlib import Path
-from graphify.extract import extract_python, extract, collect_files, _make_id, extract_bash, extract_json, _DISPATCH
+from graphify_construct.extract import extract_python, extract, collect_files, _make_id, extract_bash, extract_json, _DISPATCH
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -210,7 +210,7 @@ def test_extract_does_not_rewire_constructor_method_to_same_named_class(tmp_path
 
 
 def test_collect_files_from_dir():
-    from graphify.extract import _DISPATCH
+    from graphify_construct.extract import _DISPATCH
     files = collect_files(FIXTURES)
     supported = set(_DISPATCH.keys())
     assert all(f.suffix in supported for f in files)
@@ -356,7 +356,7 @@ def test_extract_generic_surfaces_tree_sitter_version_mismatch_hint(monkeypatch)
     """
     import sys
     import types
-    from graphify.extract import _extract_generic, LanguageConfig
+    from graphify_construct.extract import _extract_generic, LanguageConfig
 
     # Build a fake tree_sitter module whose Language() raises TypeError -
     # this is exactly what users see when an older tree-sitter is paired
@@ -383,7 +383,7 @@ def test_extract_generic_surfaces_tree_sitter_version_mismatch_hint(monkeypatch)
 
 def test_extract_js_destructured_require_imports_from():
     """`const { foo } = require('./mod')` must emit imports_from to the resolved module path."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "cjs_require.js")
     imports_from = [e for e in result["edges"] if e["relation"] == "imports_from"]
     targets = [e["target"] for e in imports_from]
@@ -397,7 +397,7 @@ def test_extract_js_destructured_require_imports_from():
 
 def test_extract_js_destructured_require_named_symbols():
     """Destructured CJS requires must emit symbol-level `imports` edges per binder."""
-    from graphify.extract import extract_js, _make_id, _file_stem
+    from graphify_construct.extract import extract_js, _make_id, _file_stem
     result = extract_js(FIXTURES / "cjs_require.js")
     sym_targets = [e["target"] for e in result["edges"] if e["relation"] == "imports"]
     foundation_stem = _file_stem(FIXTURES / "foundation.js")
@@ -407,7 +407,7 @@ def test_extract_js_destructured_require_named_symbols():
 
 def test_extract_js_member_require_emits_property_symbol():
     """`const x = require('./m').y` must emit symbol edge for `y`."""
-    from graphify.extract import extract_js, _make_id, _file_stem
+    from graphify_construct.extract import extract_js, _make_id, _file_stem
     result = extract_js(FIXTURES / "cjs_require.js")
     sym_targets = [e["target"] for e in result["edges"] if e["relation"] == "imports"]
     helpers_stem = _file_stem(FIXTURES / "helpers.js")
@@ -416,7 +416,7 @@ def test_extract_js_member_require_emits_property_symbol():
 
 def test_extract_js_arrow_function_still_extracted():
     """Regression: arrow functions in lexical_declaration must still produce nodes."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     arrow_fixture = FIXTURES / "_arrow_only.js"
     arrow_fixture.write_text("const greet = () => console.log('hi');\n")
     try:
@@ -483,7 +483,7 @@ def test_cross_file_call_remains_inferred_without_import_evidence(tmp_path):
 
 def test_extract_tsx_finds_helpers_and_component():
     """Functions defined alongside a JSX-returning component must be captured."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "sample.tsx")
     labels = [n["label"] for n in result["nodes"]]
     assert any("fmtDate" in l for l in labels), f"fmtDate missing from {labels}"
@@ -497,7 +497,7 @@ def test_extract_tsx_jsx_expression_calls_resolve():
     Regression guard for the TSX language fix: with `language_typescript`,
     JSX is parsed as ERROR nodes and these call_expressions disappear.
     """
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "sample.tsx")
     nodes_by_id = {n["id"]: n for n in result["nodes"]}
     call_targets = {
@@ -515,7 +515,7 @@ def test_extract_tsx_jsx_expression_calls_resolve():
 
 def test_extract_tsx_uses_tsx_grammar():
     """Wiring check: the .tsx config must use tree-sitter's `language_tsx`."""
-    from graphify.extract import _TSX_CONFIG, _TS_CONFIG
+    from graphify_construct.extract import _TSX_CONFIG, _TS_CONFIG
     assert _TSX_CONFIG.ts_language_fn == "language_tsx"
     assert _TS_CONFIG.ts_language_fn == "language_typescript"
 
@@ -906,13 +906,13 @@ def test_extract_json_no_self_loops():
 
 
 def test_extract_bash_via_dispatch():
-    from graphify.extract import _get_extractor
+    from graphify_construct.extract import _get_extractor
     assert _get_extractor(Path("foo.sh")) is extract_bash
     assert _get_extractor(Path("foo.bash")) is extract_bash
 
 
 def test_extract_json_via_dispatch():
-    from graphify.extract import _get_extractor
+    from graphify_construct.extract import _get_extractor
     assert _get_extractor(Path("foo.json")) is extract_json
 
 
@@ -937,7 +937,7 @@ def test_extract_bash_node_metadata_is_sanitized():
 
 def test_barrel_reexport_emits_re_exports_edges():
     """export { X } from './mod' must emit re_exports edges for each named specifier."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "barrel_reexport.ts")
     reexports = [e for e in result["edges"] if e["relation"] == "re_exports"]
     targets = [e["target"] for e in reexports]
@@ -951,7 +951,7 @@ def test_barrel_reexport_emits_re_exports_edges():
 
 def test_barrel_reexport_emits_imports_from():
     """Barrel file must emit file-level imports_from edges to source modules."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "barrel_reexport.ts")
     imports_from = [e for e in result["edges"] if e["relation"] == "imports_from"]
     targets = [e["target"] for e in imports_from]
@@ -962,7 +962,7 @@ def test_barrel_reexport_emits_imports_from():
 
 def test_barrel_reexport_context_tagged():
     """re_exports edges should have context='re-export'."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "barrel_reexport.ts")
     reexports = [e for e in result["edges"] if e["relation"] == "re_exports"]
     for e in reexports:
@@ -971,7 +971,7 @@ def test_barrel_reexport_context_tagged():
 
 def test_barrel_local_exports_still_extracted():
     """export function/const in a barrel file must still create nodes."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "barrel_reexport.ts")
     labels = [n["label"] for n in result["nodes"]]
     assert "localHelper()" in labels or "localHelper" in labels
@@ -981,7 +981,7 @@ def test_barrel_local_exports_still_extracted():
 
 def test_barrel_reexport_confidence_extracted():
     """All re_exports edges should have confidence=EXTRACTED."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     result = extract_js(FIXTURES / "barrel_reexport.ts")
     reexports = [e for e in result["edges"] if e["relation"] == "re_exports"]
     for e in reexports:
@@ -989,7 +989,7 @@ def test_barrel_reexport_confidence_extracted():
 
 
 def test_semantic_reference_edges_carry_context_and_source():
-    from graphify.extract import _semantic_reference_edge
+    from graphify_construct.extract import _semantic_reference_edge
 
     edge = _semantic_reference_edge(
         "source_node",
@@ -1013,7 +1013,7 @@ def test_semantic_reference_edges_carry_context_and_source():
 
 def test_pure_export_no_from_not_treated_as_reexport():
     """export { localVar } without 'from' should NOT create re_exports edges."""
-    from graphify.extract import extract_js
+    from graphify_construct.extract import extract_js
     import tempfile
     code = b"const x = 1;\nexport { x };\n"
     with tempfile.NamedTemporaryFile(suffix=".ts", delete=False) as f:
@@ -1026,7 +1026,7 @@ def test_pure_export_no_from_not_treated_as_reexport():
 
 def test_dart_child_node_ids_are_stem_based(tmp_path):
     """Dart child node IDs must be built from _file_stem rather than absolute path."""
-    from graphify.extract import extract_dart, _file_stem, _make_id
+    from graphify_construct.extract import extract_dart, _file_stem, _make_id
 
     src_file = tmp_path / "mydir" / "sample.dart"
     src_file.parent.mkdir(parents=True, exist_ok=True)

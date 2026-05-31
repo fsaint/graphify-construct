@@ -4,7 +4,7 @@ import pytest
 import networkx as nx
 from networkx.readwrite import json_graph
 
-from graphify.serve import (
+from graphify_construct.serve import (
     _communities_from_graph,
     _score_nodes,
     _compute_idf,
@@ -97,7 +97,7 @@ def test_query_terms_strips_search_punctuation():
 
 
 def test_query_terms_filters_only_short_english_terms(monkeypatch):
-    import graphify.serve as serve_mod
+    import graphify_construct.serve as serve_mod
 
     class FakeJieba:
         def cut(self, text):
@@ -440,7 +440,7 @@ def test_query_seeds_from_identifier_not_noise():
 
 def test_query_graph_text_parameter_type_context_filter_changes_traversal():
     import networkx as nx
-    from graphify.serve import _query_graph_text
+    from graphify_construct.serve import _query_graph_text
 
     graph = nx.Graph()
     graph.add_node("process", label="process", source_file="sample.cs", source_location="L20")
@@ -458,7 +458,7 @@ def test_query_graph_text_parameter_type_context_filter_changes_traversal():
 
 def test_query_graph_text_context_filter_aliases_resolve():
     import networkx as nx
-    from graphify.serve import _normalize_context_filters
+    from graphify_construct.serve import _normalize_context_filters
 
     assert _normalize_context_filters(["param"]) == ["parameter_type"]
     assert _normalize_context_filters(["parameter"]) == ["parameter_type"]
@@ -477,7 +477,7 @@ def test_query_graph_text_context_filter_aliases_resolve():
 
 def test_query_terms_chinese_segments_with_cached_jieba(monkeypatch):
     """Chinese text should use the cached jieba module and keep the original term."""
-    import graphify.serve as serve_mod
+    import graphify_construct.serve as serve_mod
 
     class FakeJieba:
         def cut(self, text):
@@ -500,7 +500,7 @@ def test_query_terms_chinese_mixed():
 
 def test_query_terms_non_chinese_scripts_are_not_segmented():
     """Japanese kana and Hangul are kept as terms but not segmented as Chinese."""
-    import graphify.serve as serve_mod
+    import graphify_construct.serve as serve_mod
 
     assert not serve_mod._has_chinese("かなカナ한글")
     assert serve_mod._query_terms("かなカナ한글") == ["かなカナ한글"]
@@ -508,7 +508,7 @@ def test_query_terms_non_chinese_scripts_are_not_segmented():
 
 def test_query_terms_chinese_no_jieba_fallback(monkeypatch):
     """When jieba is not installed, fallback to character bigrams."""
-    import graphify.serve as serve_mod
+    import graphify_construct.serve as serve_mod
 
     monkeypatch.setattr(serve_mod, "_jieba", None)
     terms = serve_mod._query_terms("页面路由")

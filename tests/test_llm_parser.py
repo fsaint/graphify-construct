@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from graphify import llm
+from graphify_construct import llm
 
 
 # ---------- _parse_llm_json: the four canonical failure modes ----------

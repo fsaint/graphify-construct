@@ -1,14 +1,14 @@
 import pytest
-from graphify.validate import validate_extraction, assert_valid
+from graphify_construct.validate import validate_extraction, assert_valid
 
 VALID = {
     "nodes": [
-        {"id": "n1", "label": "Foo", "file_type": "code", "source_file": "foo.py"},
-        {"id": "n2", "label": "Bar", "file_type": "document", "source_file": "bar.md"},
+        {"id": "n1", "label": "Pour Foundation", "file_type": "task", "source_file": "schedule.md"},
+        {"id": "n2", "label": "RFI-042", "file_type": "document", "source_file": "rfi-042.md"},
     ],
     "edges": [
         {"source": "n1", "target": "n2", "relation": "references",
-         "confidence": "EXTRACTED", "source_file": "foo.py", "weight": 1.0},
+         "confidence": "EXTRACTED", "source_file": "schedule.md", "weight": 1.0},
     ],
 }
 
@@ -38,8 +38,8 @@ def test_invalid_file_type():
 def test_invalid_confidence():
     data = {
         "nodes": [
-            {"id": "n1", "label": "A", "file_type": "code", "source_file": "a.py"},
-            {"id": "n2", "label": "B", "file_type": "code", "source_file": "b.py"},
+            {"id": "n1", "label": "A", "file_type": "task", "source_file": "a.py"},
+            {"id": "n2", "label": "B", "file_type": "task", "source_file": "b.py"},
         ],
         "edges": [
             {"source": "n1", "target": "n2", "relation": "calls",
@@ -51,7 +51,7 @@ def test_invalid_confidence():
 
 def test_dangling_edge_source():
     data = {
-        "nodes": [{"id": "n1", "label": "A", "file_type": "code", "source_file": "a.py"}],
+        "nodes": [{"id": "n1", "label": "A", "file_type": "task", "source_file": "a.py"}],
         "edges": [
             {"source": "missing_id", "target": "n1", "relation": "calls",
              "confidence": "EXTRACTED", "source_file": "a.py"},
@@ -62,7 +62,7 @@ def test_dangling_edge_source():
 
 def test_dangling_edge_target():
     data = {
-        "nodes": [{"id": "n1", "label": "A", "file_type": "code", "source_file": "a.py"}],
+        "nodes": [{"id": "n1", "label": "A", "file_type": "task", "source_file": "a.py"}],
         "edges": [
             {"source": "n1", "target": "ghost", "relation": "calls",
              "confidence": "EXTRACTED", "source_file": "a.py"},

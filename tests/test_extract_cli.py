@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-import graphify.__main__ as mainmod
+import graphify_construct.__main__ as mainmod
 
 
 def _make_corpus(tmp_path):

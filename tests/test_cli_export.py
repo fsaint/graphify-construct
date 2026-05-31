@@ -18,7 +18,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def _run(args: list[str], cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [PYTHON, "-m", "graphify"] + args,
+        [PYTHON, "-m", "graphify_construct"] + args,
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -32,10 +32,10 @@ def _make_graph(tmp_path: Path) -> Path:
     out.mkdir()
 
     extraction = json.loads((FIXTURES / "extraction.json").read_text())
-    from graphify.build import build_from_json
-    from graphify.cluster import cluster, score_all
-    from graphify.analyze import god_nodes, surprising_connections
-    from graphify.export import to_json
+    from graphify_construct.build import build_from_json
+    from graphify_construct.cluster import cluster, score_all
+    from graphify_construct.analyze import god_nodes, surprising_connections
+    from graphify_construct.export import to_json
 
     G = build_from_json(extraction)
     communities = cluster(G)

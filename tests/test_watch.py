@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 import pytest
 
-from graphify.watch import _notify_only, _WATCHED_EXTENSIONS, _rebuild_lock, _check_shrink
+from graphify_construct.watch import _notify_only, _WATCHED_EXTENSIONS, _rebuild_lock, _check_shrink
 
 
 # --- _notify_only ---
@@ -60,13 +60,13 @@ def test_watched_extensions_excludes_noise():
 
 def test_check_update_no_flag_returns_true(tmp_path):
     """check_update returns True and is silent when needs_update flag is absent."""
-    from graphify.watch import check_update
+    from graphify_construct.watch import check_update
     assert check_update(tmp_path) is True
 
 
 def test_check_update_with_flag_returns_true_and_prints(tmp_path, capsys):
     """check_update returns True and prints notification when flag exists."""
-    from graphify.watch import check_update
+    from graphify_construct.watch import check_update
     flag = tmp_path / "graphify-out" / "needs_update"
     flag.parent.mkdir(parents=True, exist_ok=True)
     flag.write_text("1")
@@ -78,7 +78,7 @@ def test_check_update_with_flag_returns_true_and_prints(tmp_path, capsys):
 
 def test_check_update_does_not_clear_flag(tmp_path):
     """check_update never removes the needs_update flag (clearing is LLM's job)."""
-    from graphify.watch import check_update
+    from graphify_construct.watch import check_update
     flag = tmp_path / "graphify-out" / "needs_update"
     flag.parent.mkdir(parents=True, exist_ok=True)
     flag.write_text("1")
@@ -97,7 +97,7 @@ def test_watch_raises_without_watchdog(tmp_path, monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", mock_import)
 
-    from graphify.watch import watch
+    from graphify_construct.watch import watch
     with pytest.raises(ImportError, match="watchdog not installed"):
         watch(tmp_path)
 
@@ -145,7 +145,7 @@ def test_rebuild_code_evicts_nodes_from_deleted_files(tmp_path):
     """#1007: graphify update (_rebuild_code with no changed_paths) must remove
     nodes and edges from files deleted since the last run."""
     import json
-    from graphify.watch import _rebuild_code
+    from graphify_construct.watch import _rebuild_code
 
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -189,7 +189,7 @@ def test_rebuild_lock_non_blocking_does_not_clobber_holder(tmp_path):
 
 def test_rebuild_code_is_idempotent_when_cluster_ids_flap(tmp_path, monkeypatch):
     from graphify import cluster as cluster_mod
-    from graphify.watch import _rebuild_code
+    from graphify_construct.watch import _rebuild_code
 
     src = tmp_path / "app.py"
     src.write_text("def alpha():\n    return 1\n\ndef beta():\n    return alpha()\n", encoding="utf-8")
@@ -222,7 +222,7 @@ def test_rebuild_code_is_idempotent_when_cluster_ids_flap(tmp_path, monkeypatch)
 
 def test_rebuild_code_skips_cluster_when_topology_unchanged(tmp_path, monkeypatch):
     from graphify import cluster as cluster_mod
-    from graphify.watch import _rebuild_code
+    from graphify_construct.watch import _rebuild_code
 
     src = tmp_path / "app.py"
     src.write_text("def alpha():\n    return 1\n\ndef beta():\n    return alpha()\n", encoding="utf-8")
@@ -435,7 +435,7 @@ def test_rebuild_code_prunes_deleted_file_nodes(tmp_path):
     shrink guard and refuses to write; with the fix the deleted file's nodes
     are pruned and graph.json is rewritten.
     """
-    from graphify.watch import _rebuild_code
+    from graphify_construct.watch import _rebuild_code
 
     # Set up a minimal "project" with two Python files in a git repo so detect
     # treats it as a real corpus.

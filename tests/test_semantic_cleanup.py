@@ -2,13 +2,13 @@
 
 import json
 
-from graphify import semantic_cleanup as sc
+from graphify_construct import semantic_cleanup as sc
 
 
 def _valid_fragment():
     return {
-        "nodes": [{"id": "module_func", "label": "func", "file_type": "code"}],
-        "edges": [{"source": "module_func", "target": "other_node"}],
+        "nodes": [{"id": "schedule_task", "label": "Pour Foundation", "file_type": "task"}],
+        "edges": [{"source": "schedule_task", "target": "other_node"}],
         "hyperedges": [],
     }
 
@@ -33,7 +33,7 @@ def test_validate_semantic_fragment_rejects_oversize_payload(monkeypatch):
 def test_validate_semantic_fragment_rejects_too_many_nodes(monkeypatch):
     monkeypatch.setattr(sc, "MAX_SEMANTIC_FRAGMENT_NODES", 1)
     fragment = _valid_fragment()
-    fragment["nodes"].append({"id": "extra", "label": "extra", "file_type": "code"})
+    fragment["nodes"].append({"id": "extra", "label": "extra", "file_type": "task"})
     errors = sc.validate_semantic_fragment(fragment)
     assert any("nodes" in e.lower() for e in errors)
 
@@ -58,24 +58,23 @@ def test_validate_semantic_fragment_rejects_invalid_file_type():
     assert any("file_type" in e for e in errors)
 
 
-def test_validate_semantic_fragment_accepts_rationale_file_type():
-    """LLM output with file_type='rationale' must pass validation so the cleanup
-    pass can convert or remove it.  Validation must not reject it before cleanup runs."""
+def test_validate_semantic_fragment_accepts_person_file_type():
+    """Construction entity types like 'person' must pass validation."""
     fragment = _valid_fragment()
-    fragment["nodes"][0]["file_type"] = "rationale"
+    fragment["nodes"][0]["file_type"] = "person"
     errors = sc.validate_semantic_fragment(fragment)
     assert not any("file_type" in e for e in errors), (
-        f"'rationale' must be accepted by validate_semantic_fragment; got errors: {errors}"
+        f"'person' must be accepted by validate_semantic_fragment; got errors: {errors}"
     )
 
 
-def test_validate_semantic_fragment_accepts_concept_file_type():
-    """LLM output with file_type='concept' must pass validation for the same reason."""
+def test_validate_semantic_fragment_accepts_institution_file_type():
+    """Construction entity types like 'institution' must pass validation."""
     fragment = _valid_fragment()
-    fragment["nodes"][0]["file_type"] = "concept"
+    fragment["nodes"][0]["file_type"] = "institution"
     errors = sc.validate_semantic_fragment(fragment)
     assert not any("file_type" in e for e in errors), (
-        f"'concept' must be accepted by validate_semantic_fragment; got errors: {errors}"
+        f"'institution' must be accepted by validate_semantic_fragment; got errors: {errors}"
     )
 
 

@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from graphify.detect import CODE_EXTENSIONS
-from graphify.extract import (
+from graphify_construct.detect import CODE_EXTENSIONS
+from graphify_construct.extract import (
     _make_id,
     extract_astro,
 )

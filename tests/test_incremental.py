@@ -12,7 +12,7 @@ PYTHON = sys.executable
 
 def _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [PYTHON, "-m", "graphify"] + args,
+        [PYTHON, "-m", "graphify_construct"] + args,
         cwd=cwd,
         capture_output=True,
         text=True,

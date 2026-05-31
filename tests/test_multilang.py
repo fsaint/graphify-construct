@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 import pytest
-from graphify.extract import extract_js, extract_go, extract_rust, extract, extract_sql
+from graphify_construct.extract import extract_js, extract_go, extract_rust, extract, extract_sql
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -174,7 +174,7 @@ def test_go_method_declaration_emits_refs_only_when_name_present():
     """
     import ast
     import inspect
-    from graphify.extract import extract_go
+    from graphify_construct.extract import extract_go
 
     tree = ast.parse(inspect.getsource(extract_go))
 
@@ -362,7 +362,7 @@ def test_rust_method_parameter_return_and_generic_contexts():
 def test_rust_no_cross_crate_spurious_edges():
     """Scoped calls (Type::method) and blocklisted names must not produce
     INFERRED cross-crate calls edges (#908)."""
-    from graphify.extract import extract
+    from graphify_construct.extract import extract
     crate_a = FIXTURES / "crate_a" / "src" / "lib.rs"
     crate_b = FIXTURES / "crate_b" / "src" / "lib.rs"
     r = extract([crate_a, crate_b])

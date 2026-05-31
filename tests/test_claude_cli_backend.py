@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from graphify import llm
+from graphify_construct import llm
 
 _ENVELOPE = {
     "type": "result",
