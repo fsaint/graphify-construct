@@ -105,6 +105,99 @@ def edge_datas(G: nx.Graph, u: str, v: str) -> list[dict]:
     return [raw]
 
 
+def _parse_revision(rev: str | None) -> tuple[int, str]:
+    """Return a sortable (numeric_part, raw) tuple for a revision label.
+
+    Handles common forms: "R0", "R1", "R2", "Rev0", "Rev1", "0", "1", etc.
+    Missing or empty revision is treated as revision 0.
+    """
+    if not rev:
+        return (0, "")
+    s = str(rev).strip()
+    # Strip leading alphabetic prefix (R, Rev, REV, rev …) and parse the integer.
+    m = re.match(r"^[A-Za-z]*(\d+)$", s)
+    if m:
+        return (int(m.group(1)), s)
+    # Non-numeric revision label — fall back to lexicographic ordering via (0, raw).
+    return (0, s)
+
+
+def _add_supersedes_edges(G: nx.Graph) -> None:
+    """Auto-derive *supersedes* edges for submittal revision chains.
+
+    Groups submittal nodes by their ``code`` field (preferred) or by the node
+    label with any trailing revision suffix stripped.  Within each group, nodes
+    are sorted by revision label (R0 < R1 < R2 …) and consecutive pairs receive
+    a ``supersedes`` edge (newer → older) unless one already exists.
+
+    Called automatically at the end of :func:`build_from_json`.
+    """
+    _REV_SUFFIX = re.compile(
+        r"[\s_\-](R|Rev|REV)\d+$",
+        re.IGNORECASE,
+    )
+
+    # Collect all submittal nodes.
+    submittal_nodes = [
+        (nid, data)
+        for nid, data in G.nodes(data=True)
+        if data.get("file_type") == "submittal"
+    ]
+    if not submittal_nodes:
+        return
+
+    # Group by code field, falling back to stripped label.
+    groups: dict[str, list[tuple[str, dict]]] = {}
+    for nid, data in submittal_nodes:
+        code = (data.get("code") or "").strip()
+        if code:
+            key = code.lower()
+        else:
+            label = data.get("label", nid)
+            key = _REV_SUFFIX.sub("", label).strip().lower()
+        groups.setdefault(key, []).append((nid, data))
+
+    added = 0
+    for key, members in groups.items():
+        if len(members) < 2:
+            continue
+        # Sort by (numeric_revision, raw_revision_string) ascending.
+        members.sort(key=lambda x: _parse_revision(x[1].get("revision")))
+        # Add supersedes edge for each consecutive older→newer pair.
+        for i in range(len(members) - 1):
+            older_id, _ = members[i]
+            newer_id, newer_data = members[i + 1]
+            # Skip if a supersedes edge already exists in either direction.
+            if G.has_edge(newer_id, older_id) or G.has_edge(older_id, newer_id):
+                existing_edges: list[dict] = []
+                if G.has_edge(newer_id, older_id):
+                    existing_edges = edge_datas(G, newer_id, older_id)
+                else:
+                    existing_edges = edge_datas(G, older_id, newer_id)
+                if any(e.get("relation") == "supersedes" for e in existing_edges):
+                    continue
+            G.add_edge(
+                newer_id,
+                older_id,
+                relation="supersedes",
+                confidence="EXTRACTED",
+                confidence_score=1.0,
+                source_file=newer_data.get("source_file", ""),
+                source_location=None,
+                weight=1.0,
+                _src=newer_id,
+                _tgt=older_id,
+                note="auto-derived from revision labels",
+            )
+            added += 1
+
+    if added:
+        print(
+            f"[graphify] Auto-derived {added} supersedes edge(s) from submittal revision labels.",
+            file=sys.stderr,
+        )
+
+
 def build_from_json(extraction: dict, *, directed: bool = False, root: str | Path | None = None) -> nx.Graph:
     """Build a NetworkX graph from an extraction dict.
 
@@ -247,6 +340,7 @@ def build_from_json(extraction: dict, *, directed: bool = False, root: str | Pat
     hyperedges = extraction.get("hyperedges", [])
     if hyperedges:
         G.graph["hyperedges"] = hyperedges
+    _add_supersedes_edges(G)
     return G
 
 

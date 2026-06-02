@@ -15,7 +15,7 @@ from pathlib import Path
 
 # `_read_files` truncates each file at this many characters before joining into
 # the user message. Token estimates use the same cap so packing matches reality.
-_FILE_CHAR_CAP = 20_000
+_FILE_CHAR_CAP = int(os.environ.get("GRAPHIFY_FILE_CHAR_CAP", "20000"))
 # `_read_files` also wraps each file in a `=== {rel} ===\n...\n\n` separator;
 # this is roughly the per-file overhead in characters that the prompt adds.
 _PER_FILE_OVERHEAD_CHARS = 80
@@ -135,20 +135,58 @@ You are extracting a knowledge graph from a construction project's documents.
 Output ONLY valid JSON — no explanation, no markdown fences.
 
 Entity types (use exactly these values for file_type):
-  document    — RFI, submittal, spec, contract, drawing, email, report
-  task        — discrete work item (e.g. "pour foundation", "install roofing")
-  person      — named individual
-  institution — company, agency, contractor, subcontractor, authority
-  building    — structure or facility
-  location    — site, zone, room, floor, address
-  equipment   — machinery, material, tool, system
-  deadline    — date-anchored milestone (distinct from a task's due_date)
-  permit      — permit, approval, inspection result, certificate
+  document      — RFI, submittal, spec, contract, drawing, email, report
+  task          — discrete work item (e.g. "pour foundation", "install roofing")
+  person        — named individual
+  institution   — company, agency, contractor, subcontractor, authority
+  building      — structure or facility
+  location      — site, zone, room, floor, address
+  equipment     — machinery, material, tool, system
+  deadline      — date-anchored milestone (distinct from a task's due_date)
+  permit        — permit, approval, inspection result, certificate
+  submittal     — design deliverable submitted by a subcontractor or vendor for
+                  architect review. Extra fields: code (e.g. "064020-005"),
+                  revision (e.g. "R1"), spec_section, title, status
+                  (pending/approved/rejected/revise-resubmit), submitted_date,
+                  required_date, responsible_party
+  rfi           — Request for Information issued to the architect or engineer.
+                  Extra fields: number, subject, date_issued, date_responded,
+                  status (open/answered/void), responsible_party
+  change_order  — formal change to contract scope, cost, or schedule.
+                  Extra fields: number, scope (brief description),
+                  cost_impact (dollar amount if stated),
+                  schedule_impact_days, status (proposed/approved/rejected)
+  spec_section  — CSI specification section governing a scope of work.
+                  Extra fields: csi_code (e.g. "03 30 00"), title,
+                  division (e.g. "03")
+  drawing_sheet — individual drawing sheet.
+                  Extra fields: sheet_number (e.g. "A-301"),
+                  discipline (e.g. "Architectural"), title, revision
+  observation   — field observation, punch list item, or non-conformance report.
+                  Extra fields: date, location, severity (minor/major/critical),
+                  status (open/closed), spec_reference
+  delay         — documented schedule delay event.
+                  Extra fields: type (excusable/compensable/non-excusable),
+                  duration_days, cause, affected_activities (list of activity names)
 
 Relation vocabulary (use these values for relation):
   responsible_for, depends_on, precedes, located_at, approves, supplies,
   inspected_by, references, cites, requires, blocks, due_before, owned_by,
-  member_of, assigned_to
+  member_of, assigned_to,
+  supersedes, responds_to, references_spec, applies_to, resolves,
+  approves, rejects, bills_for, delays, affects_scope
+
+Relation guidance for construction-specific types:
+  supersedes      — (submittal R1) supersedes (submittal R0); revision replaces prior
+  responds_to     — (rfi response document) responds_to (rfi); closes the open question
+  references_spec — (submittal or rfi) references_spec (spec_section); cross-reference
+  applies_to      — (submittal, rfi, or observation) applies_to (drawing_sheet); spatial anchor
+  resolves        — (change_order) resolves (rfi); CO that answers an RFI
+  approves        — (person) approves (submittal or change_order); authority record
+  rejects         — (person) rejects (submittal); rejection record
+  bills_for       — (pay_application document) bills_for (spec_section or task); cost anchor
+  delays          — (delay) delays (task); schedule impact linkage
+  affects_scope   — (change_order) affects_scope (spec_section); scope change provenance
 
 Confidence:
   EXTRACTED  — explicit in source
@@ -479,21 +517,38 @@ def _call_claude(api_key: str, model: str, user_message: str, max_tokens: int = 
         ) from exc
 
     client = anthropic.Anthropic(api_key=api_key)
-    resp = client.messages.create(
+    # Always stream: avoids SDK timeout errors for long responses.
+    raw_content = ""
+    stop_reason = "stop"
+    input_tokens = output_tokens = 0
+    # Append a final reminder to the user message to force raw JSON output.
+    json_enforced_message = (
+        user_message
+        + "\n\nIMPORTANT: Your ENTIRE response must be raw JSON only — no markdown fences, "
+        "no backticks, no explanation. Start your response with { and end with }."
+    )
+    with client.messages.stream(
         model=model,
         max_tokens=max_tokens,
         system=_extraction_system(deep=deep_mode),
-        messages=[{"role": "user", "content": user_message}],
-    )
-    raw_content = resp.content[0].text if resp.content else None
+        messages=[{"role": "user", "content": json_enforced_message}],
+    ) as stream:
+        for text_chunk in stream.text_stream:
+            raw_content += text_chunk
+        final = stream.get_final_message()
+        if final:
+            stop_reason = final.stop_reason or "stop"
+            if final.usage:
+                input_tokens = final.usage.input_tokens
+                output_tokens = final.usage.output_tokens
     result = _parse_llm_json(raw_content or "{}")
-    result["input_tokens"] = resp.usage.input_tokens if resp.usage else 0
-    result["output_tokens"] = resp.usage.output_tokens if resp.usage else 0
+    result["input_tokens"] = input_tokens
+    result["output_tokens"] = output_tokens
     result["model"] = model
     # Normalise Anthropic's `stop_reason` to the OpenAI-compat `finish_reason`
     # vocabulary so the adaptive-retry layer doesn't have to know which
     # backend produced the result.
-    result["finish_reason"] = "length" if resp.stop_reason == "max_tokens" else "stop"
+    result["finish_reason"] = "length" if stop_reason == "max_tokens" else "stop"
     if _response_is_hollow(raw_content, result) and result["finish_reason"] != "length":
         print(
             "[graphify] claude returned a hollow response; treating as "

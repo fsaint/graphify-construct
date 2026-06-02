@@ -5,15 +5,23 @@ import datetime
 import sys
 
 VALID_FILE_TYPES = {
-    "document",    # RFI, submittal, spec, contract, drawing, email
-    "task",        # discrete work item
-    "person",      # named individual
-    "institution", # company, agency, subcontractor
-    "building",    # structure, facility
-    "location",    # site, zone, room, address
-    "equipment",   # machinery, material, system
-    "deadline",    # date-anchored milestone
-    "permit",      # permit / approval / inspection result
+    "document",     # RFI, submittal, spec, contract, drawing, email
+    "task",         # discrete work item
+    "person",       # named individual
+    "institution",  # company, agency, subcontractor
+    "building",     # structure, facility
+    "location",     # site, zone, room, address
+    "equipment",    # machinery, material, system
+    "deadline",     # date-anchored milestone
+    "permit",       # permit / approval / inspection result
+    # --- construction-specific types ---
+    "submittal",    # design deliverable submitted for architect review
+    "rfi",          # Request for Information
+    "change_order", # formal change to contract scope/cost/schedule
+    "spec_section", # CSI specification section
+    "drawing_sheet",# individual drawing sheet
+    "observation",  # field observation, punch list item, NCR
+    "delay",        # documented schedule delay event
 }
 VALID_CONFIDENCES = {"EXTRACTED", "INFERRED", "AMBIGUOUS"}
 REQUIRED_NODE_FIELDS = {"id", "label", "file_type", "source_file"}
